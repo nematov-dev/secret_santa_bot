@@ -146,3 +146,28 @@ def save_assignments(pairs):
     conn.commit()
     cur.close()
     conn.close()
+
+def get_all_participants():
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT name FROM participants ORDER BY id")
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
+    return [r[0] for r in rows]
+
+
+def get_all_assignments_for_users():
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT p1.name, p2.name
+        FROM assignments a
+        JOIN participants p1 ON p1.id = a.giver_id
+        JOIN participants p2 ON p2.id = a.receiver_id
+        ORDER BY p1.name
+    """)
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
+    return [(giver, receiver) for giver, receiver in rows]
