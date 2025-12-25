@@ -38,10 +38,12 @@ def generate_pairs(ids):
             return list(zip(ids, shuffled))
 
 # ================= FSM ====================
+
 class Form(StatesGroup):
     name = State()
 
 # ================= BOT ====================
+
 dp = Dispatcher()
 
 def is_admin(user_id: int) -> bool:
@@ -53,15 +55,12 @@ def is_admin(user_id: int) -> bool:
 async def start(message: Message, state: FSMContext):
     kb = ReplyKeyboardMarkup(
         keyboard=[
-            [KeyboardButton(text="🎁 Boshlash")],
-            [KeyboardButton(text="📋 Ishtirokchilar"), KeyboardButton(text="🎉 Assignments")]
+            [KeyboardButton("🎁 Boshlash")],
+            [KeyboardButton("📋 Ishtirokchilar"), KeyboardButton("🎉 Assignments")]
         ],
         resize_keyboard=True
     )
-    await message.answer(
-        "🎄 Secret Santa botiga xush kelibsiz!\nIsmingizni kiriting:",
-        reply_markup=kb
-    )
+    await message.answer("🎄 Secret Santa botiga xush kelibsiz!\nIsmingizni kiriting:", reply_markup=kb)
     await state.set_state(Form.name)
 
 @dp.message(Form.name)
@@ -85,7 +84,7 @@ async def start_santa(message: Message):
 
     old = get_assignment(user[0])
     if old:
-        await message.answer(f"🎁 Siz sovg‘ani <b>{old[0].title()}</b> ga berasiz")
+        await message.answer(f"🎁 Siz sovg‘ani <b>{old[0].title()}</b> ga berasiz", parse_mode="HTML")
         return
 
     ids = get_all_participant_ids()
@@ -93,14 +92,15 @@ async def start_santa(message: Message):
     save_assignments(pairs)
     receiver = get_assignment(user[0])
 
-    await message.answer(f"🎉 Siz sovg‘ani <b>{receiver[0].title()}</b> ga berasiz!")
+    await message.answer(f"🎉 Siz sovg‘ani <b>{receiver[0].title()}</b> ga berasiz!", parse_mode="HTML")
 
     for group_id in GROUP_IDS:
         await bot.send_message(
             group_id,
             f"🎄 Secret Santa!\n"
             f"🎁 {user[1].title()} → {receiver[0].title()} ga sovg'a beradi!\n"
-            f"👏 Tabriklaymiz!"
+            f"👏 Tabriklaymiz!",
+            parse_mode="HTML"
         )
 
 # ================= MENU HANDLERS ===============
@@ -159,10 +159,7 @@ async def admin_remove(message: Message):
 
 async def main():
     create_tables()
-    bot = Bot(
-        token=BOT_TOKEN,
-        default=DefaultBotProperties(parse_mode="HTML")
-    )
+    bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode="HTML"))
     dp["bot"] = bot
     await dp.start_polling(bot)
 
