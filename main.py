@@ -54,7 +54,11 @@ async def add_participant_db(pool, name):
 async def remove_participant_db(pool, name):
     async with pool.acquire() as conn:
         result = await conn.execute("DELETE FROM participants WHERE name=$1", name)
-        return int(result.split()[-1])  # Deleted rows
+        return int(result.split()[-1])
+
+async def clear_database(pool):
+    async with pool.acquire() as conn:
+        await conn.execute("TRUNCATE TABLE assignments, users, participants RESTART IDENTITY CASCADE")
 
 async def get_participant_by_name(pool, name):
     async with pool.acquire() as conn:
@@ -81,7 +85,8 @@ async def get_user(pool, tg_id):
 async def get_assignment(pool, giver_id):
     async with pool.acquire() as conn:
         row = await conn.fetchrow("""
-            SELECT p.name FROM assignments a
+            SELECT p.name AS receiver_name
+            FROM assignments a
             JOIN participants p ON p.id=a.receiver_id
             WHERE a.giver_id=$1
         """, giver_id)
@@ -109,13 +114,13 @@ async def get_all_participants(pool):
 async def get_all_assignments_for_users(pool):
     async with pool.acquire() as conn:
         rows = await conn.fetch("""
-            SELECT p1.name, p2.name
+            SELECT p1.name AS giver_name, p2.name AS receiver_name
             FROM assignments a
             JOIN participants p1 ON p1.id = a.giver_id
             JOIN participants p2 ON p2.id = a.receiver_id
             ORDER BY p1.name
         """)
-        return [(r["p1"]["name"], r["p2"]["name"]) for r in rows]
+        return [(r["giver_name"], r["receiver_name"]) for r in rows]
 
 # ================= SECRET SANTA =================
 
@@ -148,8 +153,7 @@ def is_admin(user_id: int) -> bool:
 async def start(message: Message, state: FSMContext):
     kb = ReplyKeyboardMarkup(
         keyboard=[
-            [KeyboardButton(text="🎁 Boshlash")],
-            [KeyboardButton(text="📋 Ishtirokchilar"), KeyboardButton(text="🎉 Assignments")]
+            [KeyboardButton(text="🎁 Boshlash")]
         ],
         resize_keyboard=True
     )
@@ -179,7 +183,7 @@ async def start_santa(message: Message):
 
     old = await get_assignment(pool, user["id"])
     if old:
-        await message.answer(f"🎁 Siz sovg‘ani <b>{old['name'].title()}</b> ga berasiz")
+        await message.answer(f"🎁 Siz sovg‘ani <b>{old['receiver_name'].title()}</b> ga berasiz")
         return
 
     ids = await get_all_participant_ids(pool)
@@ -191,21 +195,24 @@ async def start_santa(message: Message):
 
     await save_assignments(pool, pairs)
     receiver = await get_assignment(pool, user["id"])
-    await message.answer(f"🎉 Siz sovg‘ani <b>{receiver['name'].title()}</b> ga berasiz!")
+    await message.answer(f"🎉 Siz sovg‘ani <b>{receiver['receiver_name'].title()}</b> ga berasiz!")
 
     bot: Bot = dp["bot"]
     for group_id in GROUP_IDS:
         await bot.send_message(
             group_id,
             f"🎄 Secret Santa!\n"
-            f"🎁 {user['name'].title()} → {receiver['name'].title()} ga sovg'a beradi!\n"
+            f"🎁 {user['name'].title()} → {receiver['receiver_name'].title()} ga sovg'a beradi!\n"
             f"👏 Tabriklaymiz!"
         )
 
-# ================= MENU HANDLERS ===============
+# ================= ADMIN ONLY COMMANDS ==================
 
-@dp.message(F.text == "📋 Ishtirokchilar")
-async def menu_participants(message: Message):
+@dp.message(Command(commands=["participants"]))
+async def cmd_participants(message: Message):
+    if not is_admin(message.from_user.id):
+        await message.answer("❌ Faqat admin ishlata oladi")
+        return
     participants = await get_all_participants(pool)
     if not participants:
         await message.answer("❌ Hozircha ishtirokchi yo‘q")
@@ -213,8 +220,11 @@ async def menu_participants(message: Message):
     text = "🎄 Ishtirokchilar ro‘yxati:\n" + "\n".join(f"• {name.title()}" for name in participants)
     await message.answer(text)
 
-@dp.message(F.text == "🎉 Assignments")
-async def menu_assignments(message: Message):
+@dp.message(Command(commands=["assignments"]))
+async def cmd_assignments(message: Message):
+    if not is_admin(message.from_user.id):
+        await message.answer("❌ Faqat admin ishlata oladi")
+        return
     assignments = await get_all_assignments_for_users(pool)
     if not assignments:
         await message.answer("❌ Hozircha sovg‘a taqsimoti yo‘q")
@@ -223,8 +233,6 @@ async def menu_assignments(message: Message):
     for giver, receiver in assignments:
         text += f"• {giver.title()} → {receiver.title()}\n"
     await message.answer(text)
-
-# ================= ADMIN ==================
 
 @dp.message(Command(commands=["add"]))
 async def admin_add(message: Message):
@@ -255,6 +263,13 @@ async def admin_remove(message: Message):
         await message.answer("❌ Topilmadi")
     else:
         await message.answer(f"🗑 {name.title()} o‘chirildi")
+
+@dp.message(Command(commands=["clear"]))
+async def admin_clear(message: Message):
+    if not is_admin(message.from_user.id):
+        return
+    await clear_database(pool)
+    await message.answer("🗑 Barcha ma'lumotlar tozalandi!")
 
 # ================= RUN ====================
 
