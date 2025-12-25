@@ -65,6 +65,7 @@ async def start(message: Message, state: FSMContext):
     )
     await state.set_state(Form.name)
 
+
 @dp.message(Form.name)
 async def check_name(message: Message, state: FSMContext):
     name = message.text.strip().lower()
