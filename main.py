@@ -2,14 +2,12 @@ import asyncio
 import random
 from decouple import config
 
-from aiogram import Dispatcher, F
+from aiogram import Bot, Dispatcher, F
 from aiogram.types import Message, KeyboardButton, ReplyKeyboardMarkup
 from aiogram.filters import Command
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.context import FSMContext
-
-from aiogram.client.bot import Bot, DefaultBotProperties
-from aiogram.client.session.aiohttp import AiohttpSession
+from aiogram.client.telegram import DefaultBotProperties
 
 from db import (
     get_user,
@@ -31,6 +29,7 @@ ADMIN_ID = int(config("ADMIN_ID"))
 GROUP_IDS = [int(gid) for gid in config("GROUP_IDS").split(",")]
 
 # ================= SECRET SANTA ===========
+
 def generate_pairs(ids):
     while True:
         shuffled = ids[:]
@@ -49,16 +48,20 @@ def is_admin(user_id: int) -> bool:
     return user_id == ADMIN_ID
 
 # ================= HANDLERS ===============
+
 @dp.message(Command(commands=["start"]))
 async def start(message: Message, state: FSMContext):
     kb = ReplyKeyboardMarkup(
         keyboard=[
-            [KeyboardButton("🎁 Boshlash")],
-            [KeyboardButton("📋 Ishtirokchilar"), KeyboardButton("🎉 Assignments")]
+            [KeyboardButton(text="🎁 Boshlash")],
+            [KeyboardButton(text="📋 Ishtirokchilar"), KeyboardButton(text="🎉 Assignments")]
         ],
         resize_keyboard=True
     )
-    await message.answer("🎄 Secret Santa botiga xush kelibsiz!\nIsmingizni kiriting:", reply_markup=kb)
+    await message.answer(
+        "🎄 Secret Santa botiga xush kelibsiz!\nIsmingizni kiriting:",
+        reply_markup=kb
+    )
     await state.set_state(Form.name)
 
 @dp.message(Form.name)
@@ -100,7 +103,8 @@ async def start_santa(message: Message):
             f"👏 Tabriklaymiz!"
         )
 
-# ================= MENU HANDLERS ===========
+# ================= MENU HANDLERS ===============
+
 @dp.message(F.text == "📋 Ishtirokchilar")
 async def menu_participants(message: Message):
     participants = get_all_participants()
@@ -121,7 +125,8 @@ async def menu_assignments(message: Message):
         text += f"• {giver.title()} → {receiver.title()}\n"
     await message.answer(text)
 
-# ================= ADMIN ===================
+# ================= ADMIN ==================
+
 @dp.message(Command(commands=["add"]))
 async def admin_add(message: Message):
     if not is_admin(message.from_user.id):
@@ -150,12 +155,12 @@ async def admin_remove(message: Message):
     else:
         await message.answer(f"🗑 {name.title()} o‘chirildi")
 
-# ================= RUN =====================
+# ================= RUN ====================
+
 async def main():
     create_tables()
     bot = Bot(
         token=BOT_TOKEN,
-        session=AiohttpSession(),
         default=DefaultBotProperties(parse_mode="HTML")
     )
     dp["bot"] = bot
