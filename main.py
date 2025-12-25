@@ -49,7 +49,7 @@ def is_admin(user_id: int) -> bool:
 
 @dp.message(Command(commands=["start"]))
 async def start(message: Message, state: FSMContext):
-    await message.answer("<b>🎄 Secret Santa botiga xush kelibsiz!\n\nIsmingizni kiriting:</b>",)
+    await message.answer("<b>🎄 Secret Santa botiga xush kelibsiz!\n\nIsmingizni kiriting:</b>",parse_mode="HTML")
     await state.set_state(Form.name)
 
 @dp.message(Form.name)
