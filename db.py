@@ -11,163 +11,98 @@ DB_CONFIG = {
     "port": 5432
 }
 
-def get_connection():
-    return psycopg2.connect(**DB_CONFIG)
+# ================= DATABASE =================
 
+async def create_tables(pool):
+    async with pool.acquire() as conn:
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS participants (
+                id SERIAL PRIMARY KEY,
+                name VARCHAR(255) UNIQUE NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS users (
+                id SERIAL PRIMARY KEY,
+                tg_id BIGINT UNIQUE NOT NULL,
+                participant_id INTEGER REFERENCES participants(id)
+            );
+            CREATE TABLE IF NOT EXISTS assignments (
+                giver_id INTEGER UNIQUE REFERENCES participants(id),
+                receiver_id INTEGER REFERENCES participants(id)
+            );
+        """)
 
-# ================= DB FUNCTIONS =================
-def create_tables():
-    conn = get_connection()
-    cur = conn.cursor()
+async def add_participant_db(pool, name):
+    async with pool.acquire() as conn:
+        try:
+            await conn.execute("INSERT INTO participants (name) VALUES ($1)", name)
+            return True
+        except:
+            return False
 
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS participants (
-            id SERIAL PRIMARY KEY,
-            name VARCHAR(255) UNIQUE NOT NULL
-        );
+async def remove_participant_db(pool, name):
+    async with pool.acquire() as conn:
+        result = await conn.execute("DELETE FROM participants WHERE name=$1", name)
+        return int(result.split()[-1])
 
-        CREATE TABLE IF NOT EXISTS users (
-            id SERIAL PRIMARY KEY,
-            tg_id BIGINT UNIQUE NOT NULL,
-            participant_id INTEGER REFERENCES participants(id)
-        );
+async def clear_database(pool):
+    async with pool.acquire() as conn:
+        await conn.execute("TRUNCATE TABLE assignments, users, participants RESTART IDENTITY CASCADE")
 
-        CREATE TABLE IF NOT EXISTS assignments (
-            giver_id INTEGER UNIQUE REFERENCES participants(id),
-            receiver_id INTEGER REFERENCES participants(id)
-        );
-    """)
+async def get_participant_by_name(pool, name):
+    async with pool.acquire() as conn:
+        return await conn.fetchrow("SELECT id FROM participants WHERE name=$1", name)
 
-    conn.commit()
-    cur.close()
-    conn.close()
+async def save_user(pool, tg_id, participant_id):
+    async with pool.acquire() as conn:
+        await conn.execute("""
+            INSERT INTO users (tg_id, participant_id)
+            VALUES ($1, $2)
+            ON CONFLICT (tg_id) DO NOTHING
+        """, tg_id, participant_id)
 
+async def get_user(pool, tg_id):
+    async with pool.acquire() as conn:
+        return await conn.fetchrow("""
+            SELECT p.id, p.name FROM users u
+            JOIN participants p ON p.id=u.participant_id
+            WHERE u.tg_id=$1
+        """, tg_id)
 
+async def get_assignment(pool, giver_id):
+    async with pool.acquire() as conn:
+        return await conn.fetchrow("""
+            SELECT p.name AS receiver_name
+            FROM assignments a
+            JOIN participants p ON p.id=a.receiver_id
+            WHERE a.giver_id=$1
+        """, giver_id)
 
-def add_participant_db(name):
-    conn = get_connection()
-    cur = conn.cursor()
-    cur.execute(
-        "INSERT INTO participants (name) VALUES (%s)",
-        (name,)
-    )
-    conn.commit()
-    cur.close()
-    conn.close()
+async def get_all_participant_ids(pool):
+    async with pool.acquire() as conn:
+        rows = await conn.fetch("SELECT id FROM participants")
+        return [r["id"] for r in rows]
 
+async def save_assignments(pool, pairs):
+    async with pool.acquire() as conn:
+        for giver, receiver in pairs:
+            await conn.execute("""
+                INSERT INTO assignments (giver_id, receiver_id)
+                VALUES ($1, $2)
+                ON CONFLICT DO NOTHING
+            """, giver, receiver)
 
-def remove_participant_db(name):
-    conn = get_connection()
-    cur = conn.cursor()
-    cur.execute(
-        "DELETE FROM participants WHERE name=%s",
-        (name,)
-    )
-    deleted = cur.rowcount
-    conn.commit()
-    cur.close()
-    conn.close()
-    return deleted
+async def get_all_participants(pool):
+    async with pool.acquire() as conn:
+        rows = await conn.fetch("SELECT name FROM participants ORDER BY id")
+        return [r["name"] for r in rows]
 
-
-def get_participant_by_name(name):
-    conn = get_connection()
-    cur = conn.cursor()
-    cur.execute(
-        "SELECT id FROM participants WHERE name=%s",
-        (name,)
-    )
-    row = cur.fetchone()
-    cur.close()
-    conn.close()
-    return row
-
-
-def save_user(tg_id, participant_id):
-    conn = get_connection()
-    cur = conn.cursor()
-    cur.execute("""
-        INSERT INTO users (tg_id, participant_id)
-        VALUES (%s, %s)
-        ON CONFLICT (tg_id) DO NOTHING
-    """, (tg_id, participant_id))
-    conn.commit()
-    cur.close()
-    conn.close()
-
-
-def get_user(tg_id):
-    conn = get_connection()
-    cur = conn.cursor()
-    cur.execute("""
-        SELECT p.id, p.name FROM users u
-        JOIN participants p ON p.id=u.participant_id
-        WHERE u.tg_id=%s
-    """, (tg_id,))
-    row = cur.fetchone()
-    cur.close()
-    conn.close()
-    return row
-
-
-def get_assignment(giver_id):
-    conn = get_connection()
-    cur = conn.cursor()
-    cur.execute("""
-        SELECT p.name FROM assignments a
-        JOIN participants p ON p.id=a.receiver_id
-        WHERE a.giver_id=%s
-    """, (giver_id,))
-    row = cur.fetchone()
-    cur.close()
-    conn.close()
-    return row
-
-
-def get_all_participant_ids():
-    conn = get_connection()
-    cur = conn.cursor()
-    cur.execute("SELECT id FROM participants")
-    rows = cur.fetchall()
-    cur.close()
-    conn.close()
-    return [r[0] for r in rows]
-
-
-def save_assignments(pairs):
-    conn = get_connection()
-    cur = conn.cursor()
-    for giver, receiver in pairs:
-        cur.execute("""
-            INSERT INTO assignments (giver_id, receiver_id)
-            VALUES (%s, %s)
-            ON CONFLICT DO NOTHING
-        """, (giver, receiver))
-    conn.commit()
-    cur.close()
-    conn.close()
-
-def get_all_participants():
-    conn = get_connection()
-    cur = conn.cursor()
-    cur.execute("SELECT name FROM participants ORDER BY id")
-    rows = cur.fetchall()
-    cur.close()
-    conn.close()
-    return [r[0] for r in rows]
-
-
-def get_all_assignments_for_users():
-    conn = get_connection()
-    cur = conn.cursor()
-    cur.execute("""
-        SELECT p1.name, p2.name
-        FROM assignments a
-        JOIN participants p1 ON p1.id = a.giver_id
-        JOIN participants p2 ON p2.id = a.receiver_id
-        ORDER BY p1.name
-    """)
-    rows = cur.fetchall()
-    cur.close()
-    conn.close()
-    return [(giver, receiver) for giver, receiver in rows]
+async def get_all_assignments_for_users(pool):
+    async with pool.acquire() as conn:
+        rows = await conn.fetch("""
+            SELECT p1.name AS giver_name, p2.name AS receiver_name
+            FROM assignments a
+            JOIN participants p1 ON p1.id = a.giver_id
+            JOIN participants p2 ON p2.id = a.receiver_id
+            ORDER BY p1.name
+        """)
+        return [(r["giver_name"], r["receiver_name"]) for r in rows]
