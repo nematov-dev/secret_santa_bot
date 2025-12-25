@@ -54,15 +54,14 @@ def is_admin(user_id: int) -> bool:
 async def start(message: Message, state: FSMContext):
     kb = ReplyKeyboardMarkup(
         keyboard=[
-            [KeyboardButton("🎁 Boshlash")],
-            [KeyboardButton("📋 Ishtirokchilar"), KeyboardButton("🎉 Assignments")]
+            [KeyboardButton(text="🎁 Boshlash")],
+            [KeyboardButton(text="📋 Ishtirokchilar"), KeyboardButton(text="🎉 Assignments")]
         ],
         resize_keyboard=True
     )
     await message.answer(
         "🎄 Secret Santa botiga xush kelibsiz!\nIsmingizni kiriting:", 
-        reply_markup=kb,
-        parse_mode="HTML"
+        reply_markup=kb
     )
     await state.set_state(Form.name)
 
@@ -71,23 +70,23 @@ async def check_name(message: Message, state: FSMContext):
     name = message.text.strip().lower()
     participant = get_participant_by_name(name)
     if not participant:
-        await message.answer("❌ Siz ro‘yxatda yo‘qsiz", parse_mode="HTML")
+        await message.answer("❌ Siz ro‘yxatda yo‘qsiz")
         return
     save_user(message.from_user.id, participant[0])
     await state.clear()
-    await message.answer(f"✅ {name.title()} saqlandi, endi 🎁 Boshlash tugmasini bosing", parse_mode="HTML")
+    await message.answer(f"✅ {name.title()} saqlandi, endi 🎁 Boshlash tugmasini bosing")
 
 @dp.message(F.text == "🎁 Boshlash")
 async def start_santa(message: Message):
     bot: Bot = dp["bot"]
     user = get_user(message.from_user.id)
     if not user:
-        await message.answer("❌ Avval ismingizni kiritishingiz kerak", parse_mode="HTML")
+        await message.answer("❌ Avval ismingizni kiritishingiz kerak")
         return
 
     old = get_assignment(user[0])
     if old:
-        await message.answer(f"🎁 Siz sovg‘ani <b>{old[0].title()}</b> ga berasiz", parse_mode="HTML")
+        await message.answer(f"🎁 Siz sovg‘ani <b>{old[0].title()}</b> ga berasiz")
         return
 
     ids = get_all_participant_ids()
@@ -95,13 +94,14 @@ async def start_santa(message: Message):
     save_assignments(pairs)
     receiver = get_assignment(user[0])
 
-    await message.answer(f"🎉 Siz sovg‘ani <b>{receiver[0].title()}</b> ga berasiz!", parse_mode="HTML")
+    await message.answer(f"🎉 Siz sovg‘ani <b>{receiver[0].title()}</b> ga berasiz!")
 
     for group_id in GROUP_IDS:
         await bot.send_message(
             group_id,
-            f"🎄 Secret Santa!\n🎁 {user[1].title()} → {receiver[0].title()} ga sovg'a beradi!\n👏 Tabriklaymiz!",
-            parse_mode="HTML"
+            f"🎄 Secret Santa!\n"
+            f"🎁 {user[1].title()} → {receiver[0].title()} ga sovg'a beradi!\n"
+            f"👏 Tabriklaymiz!"
         )
 
 # ================= MENU HANDLERS ===============
@@ -110,21 +110,21 @@ async def start_santa(message: Message):
 async def menu_participants(message: Message):
     participants = get_all_participants()
     if not participants:
-        await message.answer("❌ Hozircha ishtirokchi yo‘q", parse_mode="HTML")
+        await message.answer("❌ Hozircha ishtirokchi yo‘q")
         return
     text = "🎄 Ishtirokchilar ro‘yxati:\n" + "\n".join(f"• {name.title()}" for name in participants)
-    await message.answer(text, parse_mode="HTML")
+    await message.answer(text)
 
 @dp.message(F.text == "🎉 Assignments")
 async def menu_assignments(message: Message):
     assignments = get_all_assignments_for_users()
     if not assignments:
-        await message.answer("❌ Hozircha sovg‘a taqsimoti yo‘q", parse_mode="HTML")
+        await message.answer("❌ Hozircha sovg‘a taqsimoti yo‘q")
         return
     text = "🎁 Secret Santa taqsimoti:\n"
     for giver, receiver in assignments:
         text += f"• {giver.title()} → {receiver.title()}\n"
-    await message.answer(text, parse_mode="HTML")
+    await message.answer(text)
 
 # ================= ADMIN ==================
 
@@ -134,13 +134,13 @@ async def admin_add(message: Message):
         return
     name = message.get_args().strip().lower()
     if not name:
-        await message.answer("❗ /add ism", parse_mode="HTML")
+        await message.answer("❗ /add ism")
         return
     try:
         add_participant_db(name)
-        await message.answer(f"✅ {name.title()} qo‘shildi", parse_mode="HTML")
+        await message.answer(f"✅ {name.title()} qo‘shildi")
     except:
-        await message.answer("⚠️ Bu ism allaqachon mavjud", parse_mode="HTML")
+        await message.answer("⚠️ Bu ism allaqachon mavjud")
 
 @dp.message(Command(commands=["remove"]))
 async def admin_remove(message: Message):
@@ -148,19 +148,19 @@ async def admin_remove(message: Message):
         return
     name = message.get_args().strip().lower()
     if not name:
-        await message.answer("❗ /remove ism", parse_mode="HTML")
+        await message.answer("❗ /remove ism")
         return
     deleted = remove_participant_db(name)
     if deleted == 0:
-        await message.answer("❌ Topilmadi", parse_mode="HTML")
+        await message.answer("❌ Topilmadi")
     else:
-        await message.answer(f"🗑 {name.title()} o‘chirildi", parse_mode="HTML")
+        await message.answer(f"🗑 {name.title()} o‘chirildi")
 
 # ================= RUN ====================
 
 async def main():
     create_tables()
-    bot = Bot(token=BOT_TOKEN)
+    bot = Bot(BOT_TOKEN)  # aiogram 3.22.0 uchun parse_mode bu yerda kerak emas
     dp["bot"] = bot
     await dp.start_polling(bot)
 
