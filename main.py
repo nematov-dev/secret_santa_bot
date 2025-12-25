@@ -1,5 +1,6 @@
 import asyncio
 import random
+import signal
 from decouple import config
 
 from aiogram import Bot, Dispatcher, F
@@ -132,17 +133,17 @@ async def menu_assignments(message: Message):
 async def admin_add(message: Message):
     if not is_admin(message.from_user.id):
         return
-
-    # /add komandasini olish
-    text = message.text
-    if not text or len(text.split()) < 2:
+    
+    parts = message.text.split(maxsplit=1)
+    if len(parts) < 2:
         await message.answer("❗ /add ism")
         return
-    name = text.split(maxsplit=1)[1].strip().lower()
-
-    if add_participant_db(name):
+    
+    name = parts[1].strip().lower()
+    try:
+        add_participant_db(name)
         await message.answer(f"✅ {name.title()} qo‘shildi")
-    else:
+    except:
         await message.answer("⚠️ Bu ism allaqachon mavjud")
 
 @dp.message(Command(commands=["remove"]))
@@ -150,12 +151,12 @@ async def admin_remove(message: Message):
     if not is_admin(message.from_user.id):
         return
 
-    text = message.text
-    if not text or len(text.split()) < 2:
+    parts = message.text.split(maxsplit=1)
+    if len(parts) < 2:
         await message.answer("❗ /remove ism")
         return
-    name = text.split(maxsplit=1)[1].strip().lower()
-
+    
+    name = parts[1].strip().lower()
     deleted = remove_participant_db(name)
     if deleted == 0:
         await message.answer("❌ Topilmadi")
@@ -168,7 +169,21 @@ async def main():
     create_tables()
     bot = Bot(BOT_TOKEN)
     dp["bot"] = bot
-    await dp.start_polling(bot)
+
+    polling_task = asyncio.create_task(dp.start_polling(bot))
+
+    stop_event = asyncio.Event()
+
+    def stop_signal(*args):
+        stop_event.set()
+
+    loop = asyncio.get_running_loop()
+    loop.add_signal_handler(signal.SIGTERM, stop_signal)
+    loop.add_signal_handler(signal.SIGINT, stop_signal)
+
+    await stop_event.wait()
+    polling_task.cancel()
+    await bot.session.close()
 
 if __name__ == "__main__":
     asyncio.run(main())
