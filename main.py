@@ -65,7 +65,6 @@ async def start(message: Message, state: FSMContext):
     )
     await state.set_state(Form.name)
 
-
 @dp.message(Form.name)
 async def check_name(message: Message, state: FSMContext):
     name = message.text.strip().lower()
@@ -133,10 +132,13 @@ async def menu_assignments(message: Message):
 async def admin_add(message: Message):
     if not is_admin(message.from_user.id):
         return
-    name = message.get_args().strip().lower()
-    if not name:
+    
+    parts = message.text.split(maxsplit=1)
+    if len(parts) < 2:
         await message.answer("❗ /add ism")
         return
+    
+    name = parts[1].strip().lower()
     try:
         add_participant_db(name)
         await message.answer(f"✅ {name.title()} qo‘shildi")
@@ -147,10 +149,13 @@ async def admin_add(message: Message):
 async def admin_remove(message: Message):
     if not is_admin(message.from_user.id):
         return
-    name = message.get_args().strip().lower()
-    if not name:
+
+    parts = message.text.split(maxsplit=1)
+    if len(parts) < 2:
         await message.answer("❗ /remove ism")
         return
+    
+    name = parts[1].strip().lower()
     deleted = remove_participant_db(name)
     if deleted == 0:
         await message.answer("❌ Topilmadi")
@@ -161,7 +166,7 @@ async def admin_remove(message: Message):
 
 async def main():
     create_tables()
-    bot = Bot(BOT_TOKEN)  # aiogram 3.22.0 uchun parse_mode bu yerda kerak emas
+    bot = Bot(BOT_TOKEN)  # aiogram 3.22.0
     dp["bot"] = bot
     await dp.start_polling(bot)
 
