@@ -62,8 +62,7 @@ async def clear_database(pool):
 
 async def get_participant_by_name(pool, name):
     async with pool.acquire() as conn:
-        row = await conn.fetchrow("SELECT id FROM participants WHERE name=$1", name)
-        return row
+        return await conn.fetchrow("SELECT id FROM participants WHERE name=$1", name)
 
 async def save_user(pool, tg_id, participant_id):
     async with pool.acquire() as conn:
@@ -75,22 +74,20 @@ async def save_user(pool, tg_id, participant_id):
 
 async def get_user(pool, tg_id):
     async with pool.acquire() as conn:
-        row = await conn.fetchrow("""
+        return await conn.fetchrow("""
             SELECT p.id, p.name FROM users u
             JOIN participants p ON p.id=u.participant_id
             WHERE u.tg_id=$1
         """, tg_id)
-        return row
 
 async def get_assignment(pool, giver_id):
     async with pool.acquire() as conn:
-        row = await conn.fetchrow("""
+        return await conn.fetchrow("""
             SELECT p.name AS receiver_name
             FROM assignments a
             JOIN participants p ON p.id=a.receiver_id
             WHERE a.giver_id=$1
         """, giver_id)
-        return row
 
 async def get_all_participant_ids(pool):
     async with pool.acquire() as conn:
@@ -147,20 +144,15 @@ pool: asyncpg.pool.Pool = None
 def is_admin(user_id: int) -> bool:
     return user_id == ADMIN_ID
 
-# ================= HANDLERS ===============
+# ================= HANDLERS =================
 
 @dp.message(Command(commands=["start"]))
 async def start(message: Message, state: FSMContext):
     kb = ReplyKeyboardMarkup(
-        keyboard=[
-            [KeyboardButton(text="🎁 Boshlash")]
-        ],
+        keyboard=[[KeyboardButton(text="🎁 Boshlash")]],
         resize_keyboard=True
     )
-    await message.answer(
-        "🎄 Secret Santa botiga xush kelibsiz!\nIsmingizni kiriting:", 
-        reply_markup=kb
-    )
+    await message.answer("🎄 Secret Santa botiga xush kelibsiz!\nIsmingizni kiriting:", reply_markup=kb)
     await state.set_state(Form.name)
 
 @dp.message(Form.name)
@@ -201,12 +193,10 @@ async def start_santa(message: Message):
     for group_id in GROUP_IDS:
         await bot.send_message(
             group_id,
-            f"🎄 Secret Santa!\n"
-            f"🎁 {user['name'].title()} → {receiver['receiver_name'].title()} ga sovg'a beradi!\n"
-            f"👏 Tabriklaymiz!"
+            f"🎄 Secret Santa!\n🎁 {user['name'].title()} → {receiver['receiver_name'].title()} ga sovg'a beradi!\n👏 Tabriklaymiz!"
         )
 
-# ================= ADMIN ONLY COMMANDS ==================
+# ================= ADMIN COMMANDS ==================
 
 @dp.message(Command(commands=["participants"]))
 async def cmd_participants(message: Message):
@@ -217,7 +207,7 @@ async def cmd_participants(message: Message):
     if not participants:
         await message.answer("❌ Hozircha ishtirokchi yo‘q")
         return
-    text = "🎄 Ishtirokchilar ro‘yxati:\n" + "\n".join(f"• {name.title()}" for name in participants)
+    text = "🎄 Ishtirokchilar ro‘yxati:\n" + "\n".join(f"• {n.title()}" for n in participants)
     await message.answer(text)
 
 @dp.message(Command(commands=["assignments"]))
@@ -229,9 +219,7 @@ async def cmd_assignments(message: Message):
     if not assignments:
         await message.answer("❌ Hozircha sovg‘a taqsimoti yo‘q")
         return
-    text = "🎁 Secret Santa taqsimoti:\n"
-    for giver, receiver in assignments:
-        text += f"• {giver.title()} → {receiver.title()}\n"
+    text = "🎁 Secret Santa taqsimoti:\n" + "\n".join(f"• {g.title()} → {r.title()}" for g,r in assignments)
     await message.answer(text)
 
 @dp.message(Command(commands=["add"]))
@@ -244,10 +232,7 @@ async def admin_add(message: Message):
         return
     name = parts[1].strip().lower()
     success = await add_participant_db(pool, name)
-    if success:
-        await message.answer(f"✅ {name.title()} qo‘shildi")
-    else:
-        await message.answer("⚠️ Bu ism allaqachon mavjud")
+    await message.answer(f"✅ {name.title()} qo‘shildi" if success else "⚠️ Bu ism allaqachon mavjud")
 
 @dp.message(Command(commands=["remove"]))
 async def admin_remove(message: Message):
@@ -259,10 +244,7 @@ async def admin_remove(message: Message):
         return
     name = parts[1].strip().lower()
     deleted = await remove_participant_db(pool, name)
-    if deleted == 0:
-        await message.answer("❌ Topilmadi")
-    else:
-        await message.answer(f"🗑 {name.title()} o‘chirildi")
+    await message.answer("🗑 O‘chirildi" if deleted else "❌ Topilmadi")
 
 @dp.message(Command(commands=["clear"]))
 async def admin_clear(message: Message):
