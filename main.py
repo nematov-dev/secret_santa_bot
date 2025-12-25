@@ -49,30 +49,30 @@ def is_admin(user_id: int) -> bool:
 
 @dp.message(Command(commands=["start"]))
 async def start(message: Message, state: FSMContext):
-    kb = ReplyKeyboardMarkup(
-        keyboard=[[KeyboardButton(text="🎁 Boshlash")]],
-        resize_keyboard=True
-    )
-    await message.answer("🎄 Secret Santa botiga xush kelibsiz!\nIsmingizni kiriting:", reply_markup=kb)
+    await message.answer("<b>🎄 Secret Santa botiga xush kelibsiz!\n\nIsmingizni kiriting:</b>",)
     await state.set_state(Form.name)
 
 @dp.message(Form.name)
 async def check_name(message: Message, state: FSMContext):
+    kb = ReplyKeyboardMarkup(
+        keyboard=[[KeyboardButton(text="🎁 Boshlash")]],
+        resize_keyboard=True
+    )
     name = message.text.strip().lower()
     participant = await get_participant_by_name(pool, name)
     if not participant:
-        await message.answer("❌ Siz ro‘yxatda yo‘qsiz. Adminga yozib qayta /start bosing.")
+        await message.answer("<b>❌ Siz ro‘yxatda yo‘qsiz.\n\n Adminga yozib qayta /start bosing.</b>",parse_mode='HTML')
         await state.clear()
 
     await save_user(pool, message.from_user.id, participant["id"])
     await state.clear()
-    await message.answer(f"✅ {name.title()} saqlandi, endi 🎁 Boshlash tugmasini bosing")
+    await message.answer(f"✅ {name.title()} saqlandi,\n\n🎁 Boshlash tugmasini bosing",reply_markup=kb,)
 
 @dp.message(F.text == "🎁 Boshlash")
 async def start_santa(message: Message):
     user = await get_user(pool, message.from_user.id)
     if not user:
-        await message.answer("❌ Avval ismingizni kiritishingiz kerak. /start bosing ")
+        await message.answer("<b>❌ Avval ismingizni kiritishingiz kerak. \n\n/start bosing ismingizni kiriting: </b>",parse_mode='HTML')
         return
 
     old = await get_assignment(pool, user["id"])
@@ -84,7 +84,7 @@ async def start_santa(message: Message):
     try:
         pairs = generate_pairs(ids)
     except ValueError:
-        await message.answer("⚠️ Taqsimotni yaratib bo‘lmadi, keyinroq urinib ko‘ring")
+        await message.answer("⚠️ Taqsimotni yaratib bo‘lmadi, keyinroq urinib ko‘ring ishtirokchi kam.")
         return
 
     await save_assignments(pool, pairs)
