@@ -2,11 +2,16 @@ import asyncio
 import random
 from decouple import config
 
-from aiogram import Bot, Dispatcher, F
+from aiogram import Dispatcher, F
 from aiogram.types import Message, KeyboardButton, ReplyKeyboardMarkup
 from aiogram.filters import Command
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.context import FSMContext
+
+# Aiogram 3.7+ Bot import
+from aiogram.client.bot import Bot
+from aiogram.client.session.aiohttp import AiohttpSession
+from aiogram.client.telegram import DefaultBotProperties
 
 from db import (
     get_user,
@@ -37,19 +42,16 @@ def generate_pairs(ids):
             return list(zip(ids, shuffled))
 
 # ================= FSM ====================
-
 class Form(StatesGroup):
     name = State()
 
-# ================= BOT ====================
-
+# ================= BOT & DISPATCHER ====================
 dp = Dispatcher()
 
 def is_admin(user_id: int) -> bool:
     return user_id == ADMIN_ID
 
-# ================= HANDLERS ===============
-
+# ================= HANDLERS =================
 @dp.message(Command(commands=["start"]))
 async def start(message: Message, state: FSMContext):
     kb = ReplyKeyboardMarkup(
@@ -101,8 +103,7 @@ async def start_santa(message: Message):
             f"👏 Tabriklaymiz!"
         )
 
-# ================= MENU HANDLERS ===============
-
+# ================= MENU HANDLERS =================
 @dp.message(F.text == "📋 Ishtirokchilar")
 async def menu_participants(message: Message):
     participants = get_all_participants()
@@ -124,7 +125,6 @@ async def menu_assignments(message: Message):
     await message.answer(text)
 
 # ================= ADMIN ==================
-
 @dp.message(Command(commands=["add"]))
 async def admin_add(message: Message):
     if not is_admin(message.from_user.id):
@@ -154,10 +154,17 @@ async def admin_remove(message: Message):
         await message.answer(f"🗑 {name.title()} o‘chirildi")
 
 # ================= RUN ====================
-
 async def main():
+    # DB yaratish
     create_tables()
-    bot = Bot(BOT_TOKEN, parse_mode="HTML")
+
+    # Bot yaratish 3.7+ usul
+    bot = Bot(
+        token=BOT_TOKEN,
+        session=AiohttpSession(),
+        default=DefaultBotProperties(parse_mode="HTML")
+    )
+
     dp["bot"] = bot
     await dp.start_polling(bot)
 
