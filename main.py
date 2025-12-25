@@ -161,7 +161,8 @@ async def check_name(message: Message, state: FSMContext):
     participant = await get_participant_by_name(pool, name)
     if not participant:
         await message.answer("❌ Siz ro‘yxatda yo‘qsiz")
-        return
+        await state.clear()
+
     await save_user(pool, message.from_user.id, participant["id"])
     await state.clear()
     await message.answer(f"✅ {name.title()} saqlandi, endi 🎁 Boshlash tugmasini bosing")
