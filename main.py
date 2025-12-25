@@ -132,17 +132,17 @@ async def menu_assignments(message: Message):
 async def admin_add(message: Message):
     if not is_admin(message.from_user.id):
         return
-    
-    parts = message.text.split(maxsplit=1)
-    if len(parts) < 2:
+
+    # /add komandasini olish
+    text = message.text
+    if not text or len(text.split()) < 2:
         await message.answer("❗ /add ism")
         return
-    
-    name = parts[1].strip().lower()
-    try:
-        add_participant_db(name)
+    name = text.split(maxsplit=1)[1].strip().lower()
+
+    if add_participant_db(name):
         await message.answer(f"✅ {name.title()} qo‘shildi")
-    except:
+    else:
         await message.answer("⚠️ Bu ism allaqachon mavjud")
 
 @dp.message(Command(commands=["remove"]))
@@ -150,12 +150,12 @@ async def admin_remove(message: Message):
     if not is_admin(message.from_user.id):
         return
 
-    parts = message.text.split(maxsplit=1)
-    if len(parts) < 2:
+    text = message.text
+    if not text or len(text.split()) < 2:
         await message.answer("❗ /remove ism")
         return
-    
-    name = parts[1].strip().lower()
+    name = text.split(maxsplit=1)[1].strip().lower()
+
     deleted = remove_participant_db(name)
     if deleted == 0:
         await message.answer("❌ Topilmadi")
@@ -166,7 +166,7 @@ async def admin_remove(message: Message):
 
 async def main():
     create_tables()
-    bot = Bot(BOT_TOKEN)  # aiogram 3.22.0
+    bot = Bot(BOT_TOKEN)
     dp["bot"] = bot
     await dp.start_polling(bot)
 
