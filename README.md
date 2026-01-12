@@ -33,11 +33,12 @@ The bot is built with **Python, Aiogram, and async PostgreSQL (`asyncpg`)** and 
 
 ## 📁 Repository Structure
 
-├── bot.py # Main bot script
-├── db.py # Database helper functions and asyncpg pool config
-├── requirements.txt # Python dependencies
-└── README.md # This file
-
+```
+├── bot.py                # Main bot script
+├── db.py                 # Database helper functions and asyncpg pool config
+├── requirements.txt      # Python dependencies
+└── README.md             # This file
+```
 
 ---
 
@@ -54,24 +55,29 @@ The bot is built with **Python, Aiogram, and async PostgreSQL (`asyncpg`)** and 
 ## 🛠 Installation & Setup
 
 1. **Clone the repository:**
+
 ```bash
 git clone <repository-url>
 cd secret-santa-bot
+```
 
-Create a virtual environment (optional but recommended):
+2. **Create a virtual environment (optional but recommended):**
 
+```bash
 python -m venv .venv
 source .venv/bin/activate  # Linux / macOS
 .venv\Scripts\activate     # Windows
+```
 
+3. **Install dependencies:**
 
-Install dependencies:
-
+```bash
 pip install -r requirements.txt
+```
 
+4. **Configure environment variables** (create a `.env` file in the project root):
 
-Configure environment variables (create a .env file in the project root):
-
+```
 BOT_TOKEN=<your_telegram_bot_token>
 ADMIN_IDS=<comma_separated_admin_user_ids>
 DB_HOST=localhost
@@ -79,75 +85,85 @@ DB_PORT=5432
 DB_NAME=secret_santa
 DB_USER=<your_db_user>
 DB_PASSWORD=<your_db_password>
+```
 
+5. **Run the bot:**
 
-Run the bot:
-
+```bash
 python bot.py
+```
 
+> The bot will connect to the database, create tables if needed, and start polling Telegram for messages.
 
-The bot will connect to the database, create tables if needed, and start polling Telegram for messages.
+---
 
-📝 Usage
-For Users:
+## 📝 Usage
 
-Start the bot with /start
+### For Users:
+1. Start the bot with `/start`
+2. Enter your name exactly as registered by the admin
+3. Press the “🎁 Start” button to get your Secret Santa assignment
 
-Enter your name exactly as registered by the admin
+### For Admins:
+* Add a participant:
 
-Press the “🎁 Start” button to get your Secret Santa assignment
-
-For Admins:
-
-Add a participant:
-
+```
 /add John
+```
 
+* Remove a participant:
 
-Remove a participant:
-
+```
 /remove John
+```
 
+* List participants:
 
-List participants:
-
+```
 /participants
+```
 
+* View assignments:
 
-View assignments:
-
+```
 /assignments
+```
 
+* Clear all database records:
 
-Clear all database records:
-
+```
 /clear
+```
 
+> Only Telegram users whose IDs are listed in `ADMIN_IDS` can use admin commands.
 
-Only Telegram users whose IDs are listed in ADMIN_IDS can use admin commands.
+---
 
-📊 Assignment Algorithm
+## 📊 Assignment Algorithm
 
-Gather all participant IDs from the database
+1. Gather all participant IDs from the database  
+2. Shuffle participants randomly  
+3. Ensure no one is assigned to themselves  
+4. Save the assignments in the database  
+5. Each participant can view their assigned recipient only after assignments are created  
 
-Shuffle participants randomly
+---
 
-Ensure no one is assigned to themselves
+## 🚀 Future Improvements
 
-Save the assignments in the database
+* Add scheduled automatic assignment on a specific date  
+* Add notification reminders to participants  
+* Add web interface to manage participants and view assignments  
+* Add support for multiple Secret Santa groups  
 
-Each participant can view their assigned recipient only after assignments are created
+---
 
-🚀 Future Improvements
+## 👨‍💻 Developer
 
-Add scheduled automatic assignment on a specific date
+**Saidakbar Ne'matov**
 
-Add notification reminders to participants
+---
 
-Add web interface to manage participants and view assignments
+## 📄 License
 
-Add support for multiple Secret Santa groups
-
-📄 License
-
-This project is intended for educational and demonstration purposes.
+This project is intended for **educational and demonstration purposes**.
