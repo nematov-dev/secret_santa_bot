@@ -160,7 +160,7 @@ python bot.py
 
 ## 👨‍💻 Developer
 
-**Saidakbar Ne'matov**
+**[Saidakbar Ne'matov](https://nematov.uz)**
 
 ---
 
